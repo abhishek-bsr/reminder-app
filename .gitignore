@@ -1,0 +1,6 @@
+# env
+/.vscode
+
+# build
+.DS_STORE
+/target
