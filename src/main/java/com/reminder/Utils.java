@@ -25,20 +25,20 @@ public class Utils {
         return paramValue;
     }
 
-    protected boolean checkReminderNameExists(JSONArray reminderList, String reminderName) {
+    protected int checkReminderNameExists(JSONArray reminderList, String reminderName) {
         for (int i = 0; i < reminderList.length(); i++) {
             JSONObject reminder = reminderList.getJSONObject(i);
             if (reminder.getString("name").equals(reminderName))
-                return true;
+                return i;
         }
 
-        return false;
+        return -1;
     }
 
     protected int checkReminderIdExists(JSONArray reminderList, String reminderId) {
         for (int i = 0; i < reminderList.length(); i++) {
             JSONObject reminder = reminderList.getJSONObject(i);
-            if (reminder.getString("_id").equals(reminderId))
+            if (reminder.getString("id").equals(reminderId))
                 return i;
         }
 
@@ -57,7 +57,7 @@ public class Utils {
     protected void storeDataInList(JSONArray reminderList, String reminderId, String reminderName, String tagColor,
             boolean isCompleted, boolean isImportant, String reminderUtc, Frequency frequency, String reminderNote) {
         JSONObject reminder = new JSONObject();
-        reminder.put("_id", reminderId);
+        reminder.put("id", reminderId);
         reminder.put("name", reminderName);
         reminder.put("tag_color", tagColor);
         reminder.put("is_completed", isCompleted);

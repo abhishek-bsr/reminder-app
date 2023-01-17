@@ -25,13 +25,17 @@ public class Servlet extends HttpServlet {
     private static int UNPROCESSABLE_ENTITY = 422;
 
     /*
-     * @method GET /reminders           list all reminders   
-     * @method GET /reminders/:_id      list reminder with corresponding <_id>
+     * @method GET /reminders list all reminders
+     * 
+     * @method GET /reminders/${id} list reminder with corresponding <id>
      *
-     * @param <limit>                   limit number of rows from query
-     * @param <offset>                  omit specified number of rows from query
-     * @param <completed>               get corresponding flag from query
-     * @param <important>               get corresponding flag from query
+     * @param <limit> limit number of rows from query
+     * 
+     * @param <offset> omit specified number of rows from query
+     * 
+     * @param <completed> get corresponding flag from query
+     * 
+     * @param <important> get corresponding flag from query
      */
     @Override
     public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
@@ -94,7 +98,7 @@ public class Servlet extends HttpServlet {
                 output.println(responseObject);
             } else {
                 // GET request for 1 reminder only
-                requestId = requestId.replace("/", ""); // omit '/' from path to convert into proper <_id> field
+                requestId = requestId.replace("/", ""); // omit '/' from path to convert into proper <id> field
 
                 int getObjectIndex = utility.checkReminderIdExists(reminderList, requestId);
                 if (getObjectIndex != -1) {
@@ -106,24 +110,32 @@ public class Servlet extends HttpServlet {
                     output.println(responseObject);
                 } else {
                     // data not found
-                    String errorMessage = String.format("User id " + "<" + requestId + ">" + " not found");
+                    JSONObject errorObjects = new JSONObject();
+                    String errorMessage = String.format("Reminder id " + "<" + requestId + ">" + " not found");
+                    errorObjects.put("status_code", HttpServletResponse.SC_NOT_FOUND);
+                    errorObjects.put("error", errorMessage);
 
                     response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                    JSONObject responseObject = utility.responseBuilder("error", errorMessage);
+                    JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
                     output.println(responseObject);
                 }
             }
-
         } catch (Exception err) {
             // error occuring during <Integer> or <Boolean> parsing
+            JSONObject errorObjects = new JSONObject();
+            errorObjects.put("status_code", UNPROCESSABLE_ENTITY);
+            errorObjects.put("error", err.toString());
+
             response.setStatus(UNPROCESSABLE_ENTITY);
-            utility.responseBuilder("error", err);
+            JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
+            output.println(responseObject);
         }
     }
 
     /*
-     * @method DELETE /reminders            delete all reminders
-     * @method DELETE /reminders/:_id       delete a reminder corresponging to <_id>
+     * @method DELETE /reminders delete all reminders
+     * 
+     * @method DELETE /reminders/${id} delete a reminder corresponging to <id>
      */
     @Override
     public void doDelete(HttpServletRequest request, HttpServletResponse response)
@@ -136,49 +148,63 @@ public class Servlet extends HttpServlet {
         String requestId = request.getPathInfo();
         if (requestId != null && requestId.length() != 1) {
 
-            requestId = requestId.replace("/", ""); // omit '/' from path to convert into proper <_id> field
+            requestId = requestId.replace("/", ""); // omit '/' from path to convert into proper <id> field
             int getObjectIndex = utility.checkReminderIdExists(reminderList, requestId);
 
             if (getObjectIndex == -1) {
+                // data not found
+                JSONObject errorObjects = new JSONObject();
                 String errorMessage = String.format("Reminder id " + "<" + requestId + ">" + " not found");
+                errorObjects.put("status_code", HttpServletResponse.SC_NOT_FOUND);
+                errorObjects.put("error", errorMessage);
 
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                JSONObject responseObject = utility.responseBuilder("error", errorMessage);
+                JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
                 output.println(responseObject);
             } else {
-                String reminderId = reminderList.getJSONObject(getObjectIndex).getString("_id");
+                String reminderId = reminderList.getJSONObject(getObjectIndex).getString("id");
                 reminderList.remove(getObjectIndex);
 
+                String info = String.format("<" + reminderId + ">" + " has been deleted");
+
                 response.setStatus(HttpServletResponse.SC_OK);
-                JSONObject reminderIdObject = new JSONObject().put("_id", reminderId);
+                JSONObject reminderIdObject = new JSONObject().put("message", info);
                 JSONObject responseObject = utility.responseBuilder("reminders", reminderIdObject);
                 output.println(responseObject);
             }
         } else {
-            ArrayList<String> reminderIds = new ArrayList<>(); // get all <_id>
+            ArrayList<String> reminderIds = new ArrayList<>(); // get all <id>
             for (int i = 0; i < reminderList.length(); i++) {
-                String reminderId = reminderList.getJSONObject(i).getString("_id");
+                String reminderId = reminderList.getJSONObject(i).getString("id");
                 reminderIds.add(reminderId);
             }
             reminderList = new JSONArray(); // blank JSONArray list (erase all data)
 
+            String info = String.format("<" + reminderIds.toString() + ">" + " have been deleted");
+
             response.setStatus(HttpServletResponse.SC_OK);
-            JSONObject reminderIdsObject = new JSONObject().put("_id", reminderIds);
+            JSONObject reminderIdsObject = new JSONObject().put("message", info);
             JSONObject responseObject = utility.responseBuilder("reminders", reminderIdsObject);
             output.println(responseObject);
         }
     }
 
     /*
-     * @method POST /reminders          add new data
+     * @method POST /reminders add new data
      * 
-     * @field  name                     String  REQUIRED
-     * @field  tag_color                String  REQUIRED
-     * @field  is_completed             Boolean REQUIRED
-     * @field  is_important             Boolean REQUIRED
-     * @field  reminder_utc             String  REQUIRED
-     * @field  frequency                String  REQUIRED
-     * @field  note                     String  REQUIRED
+     * @field name String REQUIRED
+     * 
+     * @field tag_color String REQUIRED
+     * 
+     * @field is_completed Boolean REQUIRED
+     * 
+     * @field is_important Boolean REQUIRED
+     * 
+     * @field reminder_utc String REQUIRED
+     * 
+     * @field frequency String REQUIRED
+     * 
+     * @field note String REQUIRED
      */
     @Override
     public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
@@ -188,7 +214,7 @@ public class Servlet extends HttpServlet {
 
         String requestBody = request.getReader().lines().collect(Collectors.joining());
         try {
-            JSONObject requestJsonObject = new JSONObject(requestBody);
+            JSONObject requestJsonObject = new JSONObject(requestBody).getJSONObject("reminders");
 
             // missing field(s) in request body
             if (requestJsonObject.has("name") || requestJsonObject.has("tag_color")
@@ -205,14 +231,21 @@ public class Servlet extends HttpServlet {
                     Instant reminderUtc = Instant.parse(requestJsonObject.getString("reminder_utc"));
                     Frequency frequency = Frequency.valueOf(requestJsonObject.getString("frequency"));
 
-                    // user already exists in database
-                    if (utility.checkReminderNameExists(reminderList, reminderName)) {
-                        // <name> already exists
-                        String errorMessage = String
-                                .format("Reminder name " + "<" + reminderName + ">" + " already exists");
+                    int nameExists = utility.checkReminderNameExists(reminderList, reminderName);
+                    if (nameExists != -1) {
+                        reminderList.getJSONObject(nameExists).put("tag_color", tagColor);
+                        reminderList.getJSONObject(nameExists).put("is_completed", isCompleted);
+                        reminderList.getJSONObject(nameExists).put("is_important", isImportant);
+                        reminderList.getJSONObject(nameExists).put("frequency", frequency);
+                        reminderList.getJSONObject(nameExists).put("reminder_utc", reminderUtc);
+                        reminderList.getJSONObject(nameExists).put("note", reminderNote);
 
-                        response.setStatus(HttpServletResponse.SC_CONFLICT);
-                        JSONObject responseObject = utility.responseBuilder("error", errorMessage);
+                        String info = String.format("Reminder <"
+                                + reminderList.getJSONObject(nameExists).getString("id") + ">" + " has been added");
+
+                        response.setStatus(HttpServletResponse.SC_CREATED);
+                        JSONObject reminderIdObject = new JSONObject().put("message", info);
+                        JSONObject responseObject = utility.responseBuilder("reminders", reminderIdObject);
                         output.println(responseObject);
                     } else {
                         // create new object <Model>
@@ -225,43 +258,61 @@ public class Servlet extends HttpServlet {
                                 reminder.getReminderUtc().toString(), frequency, reminderNote);
 
                         // object to display for successful POST request
-                        JSONObject reminderIdObject = new JSONObject().put("_id", reminder.getUuid().toString());
+                        String info = String
+                                .format("Reminder <" + reminder.getUuid().toString() + ">" + " has been added");
 
                         response.setStatus(HttpServletResponse.SC_CREATED);
+                        JSONObject reminderIdObject = new JSONObject().put("message", info);
                         JSONObject responseObject = utility.responseBuilder("reminders", reminderIdObject);
                         output.println(responseObject);
                     }
                 } catch (Exception error) {
                     // unable to parse into <Frequency> enum
+                    JSONObject errorObjects = new JSONObject();
+                    errorObjects.put("status_code", UNPROCESSABLE_ENTITY);
+                    errorObjects.put("error", error.toString());
+
                     response.setStatus(UNPROCESSABLE_ENTITY);
-                    JSONObject responseObject = utility.responseBuilder("error", error.toString());
+                    JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
                     output.println(responseObject);
                 }
             } else {
                 // missing fields in body
                 String errorMessage = "Missing one or many fields";
-
+                JSONObject errorObjects = new JSONObject();
+                errorObjects.put("status_code", UNPROCESSABLE_ENTITY);
+                errorObjects.put("error", errorMessage);
+    
                 response.setStatus(UNPROCESSABLE_ENTITY);
-                JSONObject responseObject = utility.responseBuilder("error", errorMessage);
+                JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
                 output.println(responseObject);
             }
         } catch (Exception error) {
             // Unable to parse into JSONObject
+            JSONObject errorObjects = new JSONObject();
+            errorObjects.put("status_code", HttpServletResponse.SC_BAD_REQUEST);
+            errorObjects.put("error", error.toString());
+
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            JSONObject responseObject = utility.responseBuilder("error", error.toString());
+            JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
             output.println(responseObject);
         }
     }
 
     /*
-     * @method PUT /reminders/:_id          update existing data corresponding to <_id>
-     *  
-     * @field  tag_color                    String  OPTIONAL
-     * @field  is_completed                 Boolean OPTIONAL
-     * @field  is_important                 Boolean OPTIONAL
-     * @field  reminder_utc                 String  OPTIONAL
-     * @field  frequency                    String  OPTIONAL
-     * @field  note                         String  OPTIONAL
+     * @method PUT /reminders/${id} update existing data corresponding to <id>
+     * 
+     * @field tag_color String OPTIONAL
+     * 
+     * @field is_completed Boolean OPTIONAL
+     * 
+     * @field is_important Boolean OPTIONAL
+     * 
+     * @field reminder_utc String OPTIONAL
+     * 
+     * @field frequency String OPTIONAL
+     * 
+     * @field note String OPTIONAL
      */
     @Override
     public void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
@@ -273,33 +324,39 @@ public class Servlet extends HttpServlet {
         String requestId = request.getPathInfo();
         if (requestId != null && requestId.length() != 1) {
 
-            requestId = requestId.replace("/", ""); // omit '/' from path to convert into proper <_id> field
+            requestId = requestId.replace("/", ""); // omit '/' from path to convert into proper <id> field
             int getObjectIndex = utility.checkReminderIdExists(reminderList, requestId);
 
             if (getObjectIndex == -1) {
-                // <_id> not found
+                // <id> not found
                 String errorMessage = String.format("Reminder id " + "<" + requestId + ">" + " not found");
+                JSONObject errorObjects = new JSONObject();
+                errorObjects.put("status_code", HttpServletResponse.SC_NOT_FOUND);
+                errorObjects.put("error", errorMessage);
 
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                JSONObject responseObject = utility.responseBuilder("error", errorMessage);
+                JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
                 output.println(responseObject);
             } else {
                 String requestBody = request.getReader().lines().collect(Collectors.joining());
                 try {
-                    JSONObject requestJsonObject = new JSONObject(requestBody);
+                    JSONObject requestJsonObject = new JSONObject(requestBody).getJSONObject("reminders");
                     JSONObject reminder = reminderList.getJSONObject(getObjectIndex);
 
                     for (String key : requestJsonObject.keySet()) {
-                        if (key.equals("name") || key.equals("_id"))
+                        if (key.equals("name") || key.equals("id"))
                             continue;
                         else if (key.equals("reminder_utc")) {
                             Instant updatedReminderUtc = utility.getUtcTime(requestJsonObject.getString(key));
 
                             if (updatedReminderUtc == null) {
                                 String errorMessage = String.format("Field <reminder_utc> is not in proper form");
-
+                                JSONObject errorObjects = new JSONObject();
+                                errorObjects.put("status_code", UNPROCESSABLE_ENTITY);
+                                errorObjects.put("error", errorMessage);
+                
                                 response.setStatus(UNPROCESSABLE_ENTITY);
-                                JSONObject responseObject = utility.responseBuilder("error", errorMessage);
+                                JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
                                 output.println(responseObject);
                                 return;
 
@@ -310,26 +367,34 @@ public class Servlet extends HttpServlet {
                     }
                     reminderList.put(getObjectIndex, reminder); // replace old JSONObject with new JSONObject built in
                                                                 // JSONArray <reminderList>
+                    String reminderId = reminder.getString("id"); // get <id> from JSONObject
 
-                    String reminderId = reminder.getString("_id"); // get <_id> from JSONObject
+                    String info = String.format("Reminder <" + reminderId + ">" + " has been updated");
 
                     response.setStatus(HttpServletResponse.SC_OK);
-                    JSONObject reminderIdObject = new JSONObject().put("_id", reminderId);
+                    JSONObject reminderIdObject = new JSONObject().put("message", info);
                     JSONObject responseObject = utility.responseBuilder("reminders", reminderIdObject);
                     output.println(responseObject);
                 } catch (Exception error) {
                     // Unable to parse into JSONObject
-                    response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                    JSONObject responseObject = utility.responseBuilder("error", error.toString());
-                    output.println(responseObject);
+            JSONObject errorObjects = new JSONObject();
+            errorObjects.put("status_code", HttpServletResponse.SC_BAD_REQUEST);
+            errorObjects.put("error", error.toString());
+
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
+            output.println(responseObject);
                 }
             }
         } else {
             // error in parameter
             String errorMessage = "Reminder <id> not provided as parameter";
+            JSONObject errorObjects = new JSONObject();
+            errorObjects.put("status_code", HttpServletResponse.SC_BAD_REQUEST);
+            errorObjects.put("error", errorMessage);
 
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            JSONObject responseObject = utility.responseBuilder("error", errorMessage);
+            JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
             output.println(responseObject);
         }
     }
