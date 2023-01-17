@@ -1,6 +1,5 @@
 package com.reminder;
 
-import java.util.UUID;
 import java.time.Instant;
 
 enum Frequency {
@@ -11,7 +10,7 @@ enum Frequency {
 }
 
 public class Model {
-    private UUID reminderId;
+    private int reminderId;
     private String reminderName;
     private String tagColor;
     private boolean isCompleted;
@@ -20,7 +19,7 @@ public class Model {
     private Frequency frequency;
     private String reminderNote;
 
-    public Model(UUID reminderId, String reminderName, String tagColor, boolean isCompleted, boolean isImportant,
+    public Model(int reminderId, String reminderName, String tagColor, boolean isCompleted, boolean isImportant,
             Instant reminderUtc, Frequency frequency, String reminderNote) {
         this.reminderId = reminderId;
         this.reminderName = reminderName;
@@ -32,7 +31,7 @@ public class Model {
         this.reminderNote = reminderNote;
     }
 
-    public UUID getUuid() {
+    public int getUuid() {
         return this.reminderId;
     }
 

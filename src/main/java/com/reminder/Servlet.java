@@ -23,6 +23,7 @@ public class Servlet extends HttpServlet {
     private static String CHARACTER_ENCODING = "UTF-8";
     private static String CONTENT_TYPE = "application/json";
     private static int UNPROCESSABLE_ENTITY = 422;
+    private static int counter = 0;
 
     /*
      * @method GET /reminders           list all reminders
@@ -96,7 +97,7 @@ public class Servlet extends HttpServlet {
                 // GET request for 1 reminder only
                 requestId = requestId.replace("/", ""); // omit '/' from path to convert into proper <id> field
 
-                int getObjectIndex = utility.checkReminderIdExists(reminderList, requestId);
+                int getObjectIndex = utility.checkReminderIdExists(reminderList, Integer.parseInt(requestId));
                 if (getObjectIndex != -1) {
                     // data exists in JSONArray
                     JSONObject reminder = reminderList.getJSONObject(getObjectIndex);
@@ -144,7 +145,7 @@ public class Servlet extends HttpServlet {
         if (requestId != null && requestId.length() != 1) {
 
             requestId = requestId.replace("/", ""); // omit '/' from path to convert into proper <id> field
-            int getObjectIndex = utility.checkReminderIdExists(reminderList, requestId);
+            int getObjectIndex = utility.checkReminderIdExists(reminderList, Integer.parseInt(requestId));
 
             if (getObjectIndex == -1) {
                 // data not found
@@ -157,7 +158,7 @@ public class Servlet extends HttpServlet {
                 JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
                 output.println(responseObject);
             } else {
-                String reminderId = reminderList.getJSONObject(getObjectIndex).getString("id");
+                int reminderId = reminderList.getJSONObject(getObjectIndex).getInt("id");
                 reminderList.remove(getObjectIndex);
 
                 String info = String.format("<" + reminderId + ">" + " has been deleted");
@@ -230,7 +231,7 @@ public class Servlet extends HttpServlet {
                         reminderList.getJSONObject(nameExists).put("note", reminderNote);
 
                         String info = String.format("Reminder <"
-                                + reminderList.getJSONObject(nameExists).getString("id") + ">" + " has been added");
+                                + reminderList.getJSONObject(nameExists).getInt("id") + ">" + " has been added");
 
                         response.setStatus(HttpServletResponse.SC_CREATED);
                         JSONObject reminderIdObject = new JSONObject().put("message", info);
@@ -238,17 +239,17 @@ public class Servlet extends HttpServlet {
                         output.println(responseObject);
                     } else {
                         // create new object <Model>
-                        Model reminder = new Model(utility.generateUUID(), reminderName, tagColor, isCompleted,
+                        Model reminder = new Model(++counter, reminderName, tagColor, isCompleted,
                                 isImportant, reminderUtc, frequency, reminderNote);
 
                         // store in JSONArray pool
-                        utility.storeDataInList(reminderList, reminder.getUuid().toString(), reminderName, tagColor,
+                        utility.storeDataInList(reminderList, reminder.getUuid(), reminderName, tagColor,
                                 isCompleted, isImportant,
                                 reminder.getReminderUtc().toString(), frequency, reminderNote);
 
                         // object to display for successful POST request
                         String info = String
-                                .format("Reminder <" + reminder.getUuid().toString() + ">" + " has been added");
+                                .format("Reminder <" + reminder.getUuid() + ">" + " has been added");
 
                         response.setStatus(HttpServletResponse.SC_CREATED);
                         JSONObject reminderIdObject = new JSONObject().put("message", info);
@@ -309,7 +310,7 @@ public class Servlet extends HttpServlet {
         if (requestId != null && requestId.length() != 1) {
 
             requestId = requestId.replace("/", ""); // omit '/' from path to convert into proper <id> field
-            int getObjectIndex = utility.checkReminderIdExists(reminderList, requestId);
+            int getObjectIndex = utility.checkReminderIdExists(reminderList, Integer.parseInt(requestId));
 
             if (getObjectIndex == -1) {
                 // <id> not found
@@ -351,7 +352,7 @@ public class Servlet extends HttpServlet {
                     }
                     reminderList.put(getObjectIndex, reminder); // replace old JSONObject with new JSONObject built in
                                                                 // JSONArray <reminderList>
-                    String reminderId = reminder.getString("id"); // get <id> from JSONObject
+                    int reminderId = reminder.getInt("id"); // get <id> from JSONObject
 
                     String info = String.format("Reminder <" + reminderId + ">" + " has been updated");
 
