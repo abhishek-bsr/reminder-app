@@ -25,17 +25,13 @@ public class Servlet extends HttpServlet {
     private static int UNPROCESSABLE_ENTITY = 422;
 
     /*
-     * @method GET /reminders list all reminders
-     * 
-     * @method GET /reminders/${id} list reminder with corresponding <id>
+     * @method GET /reminders           list all reminders
+     * @method GET /reminders/${id}     list reminder with corresponding <id>
      *
-     * @param <limit> limit number of rows from query
-     * 
-     * @param <offset> omit specified number of rows from query
-     * 
-     * @param <completed> get corresponding flag from query
-     * 
-     * @param <important> get corresponding flag from query
+     * @param <limit>                   limit number of rows from query
+     * @param <offset>                  omit specified number of rows from query
+     * @param <completed>               get corresponding flag from query
+     * @param <important>               get corresponding flag from query
      */
     @Override
     public void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
@@ -133,9 +129,8 @@ public class Servlet extends HttpServlet {
     }
 
     /*
-     * @method DELETE /reminders delete all reminders
-     * 
-     * @method DELETE /reminders/${id} delete a reminder corresponging to <id>
+     * @method DELETE /reminders            delete all reminders
+     * @method DELETE /reminders/${id}      delete a reminder corresponging to <id>
      */
     @Override
     public void doDelete(HttpServletRequest request, HttpServletResponse response)
@@ -190,21 +185,15 @@ public class Servlet extends HttpServlet {
     }
 
     /*
-     * @method POST /reminders add new data
+     * @method POST /reminders      add new data
      * 
-     * @field name String REQUIRED
-     * 
-     * @field tag_color String REQUIRED
-     * 
-     * @field is_completed Boolean REQUIRED
-     * 
-     * @field is_important Boolean REQUIRED
-     * 
-     * @field reminder_utc String REQUIRED
-     * 
-     * @field frequency String REQUIRED
-     * 
-     * @field note String REQUIRED
+     * @field name                  String  REQUIRED
+     * @field tag_color             String  REQUIRED
+     * @field is_completed          Boolean REQUIRED
+     * @field is_important          Boolean REQUIRED
+     * @field reminder_utc          String  REQUIRED
+     * @field frequency             String  REQUIRED
+     * @field note                  String  REQUIRED
      */
     @Override
     public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
@@ -300,19 +289,14 @@ public class Servlet extends HttpServlet {
     }
 
     /*
-     * @method PUT /reminders/${id} update existing data corresponding to <id>
+     * @method PUT /reminders/${id}     update existing data corresponding to <id>
      * 
-     * @field tag_color String OPTIONAL
-     * 
-     * @field is_completed Boolean OPTIONAL
-     * 
-     * @field is_important Boolean OPTIONAL
-     * 
-     * @field reminder_utc String OPTIONAL
-     * 
-     * @field frequency String OPTIONAL
-     * 
-     * @field note String OPTIONAL
+     * @field tag_color                 String  OPTIONAL
+     * @field is_completed              Boolean OPTIONAL
+     * @field is_important              Boolean OPTIONAL
+     * @field reminder_utc              String  OPTIONAL
+     * @field frequency                 String  OPTIONAL
+     * @field note                      String  OPTIONAL
      */
     @Override
     public void doPut(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
