@@ -17,10 +17,10 @@ public class Model {
     private boolean isImportant;
     private Instant reminderUtc;
     private Frequency frequency;
-    private String reminderNote;
+    private Object reminderNote;
 
     public Model(int reminderId, String reminderName, String tagColor, boolean isCompleted, boolean isImportant,
-            Instant reminderUtc, Frequency frequency, String reminderNote) {
+            Instant reminderUtc, Frequency frequency, Object reminderNote) {
         this.reminderId = reminderId;
         this.reminderName = reminderName;
         this.tagColor = tagColor;
@@ -59,7 +59,7 @@ public class Model {
         return this.frequency;
     }
 
-    public String getReminderNote() {
+    public Object getReminderNote() {
         return this.reminderNote;
     }
 }

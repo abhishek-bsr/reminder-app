@@ -19,10 +19,13 @@ import javax.servlet.annotation.WebServlet;
 @WebServlet(name = "Servlet", urlPatterns = "/api/v1/reminders/*")
 public class Servlet extends HttpServlet {
     private static Utils utility = new Utils();
-    private static JSONArray reminderList = new JSONArray();
+    private static Handler handler = new Handler();
+
     private static String CHARACTER_ENCODING = "UTF-8";
     private static String CONTENT_TYPE = "application/json";
     private static int UNPROCESSABLE_ENTITY = 422;
+
+    private static JSONArray reminderList = new JSONArray();
     private static int counter = 0;
 
     /*
@@ -43,7 +46,7 @@ public class Servlet extends HttpServlet {
         // check path URI
         String requestId = request.getPathInfo();
         try {
-            int limitParam = request.getParameter("limit") == null ? reminderList.length()
+            int limitParam = request.getParameter("limit") == null ? 10
                     : Integer.parseInt(request.getParameter("limit"));
             int offsetParam = request.getParameter("offset") == null ? 0
                     : Integer.parseInt(request.getParameter("offset"));
@@ -58,41 +61,15 @@ public class Servlet extends HttpServlet {
                 limitParam = utility.adjustParamlengthIfRequired(reminderList.length(), limitParam);
                 offsetParam = utility.adjustParamlengthIfRequired(reminderList.length(), offsetParam);
 
-                for (; offsetParam < reminderList.length(); offsetParam++) {
-                    // check for <completed> param and <important> param
-                    // if both are null, skip checking fields in JSONObject
-                    if (completedParam == null && importantParam == null) {
-                        reminders.put(reminderList.getJSONObject(offsetParam));
-                        limitParam = limitParam - 1;
-
-                        if (limitParam == 0)
-                            break;
-
-                        continue;
-                    }
-
-                    if (completedParam != null) {
-                        Boolean isCompleted = reminderList.getJSONObject(offsetParam).getBoolean("is_completed");
-                        if (isCompleted.equals(completedParam)) {
-                            reminders.put(reminderList.getJSONObject(offsetParam));
-                            limitParam = limitParam - 1;
-                        }
-                    }
-                    if (importantParam != null) {
-                        Boolean isImportant = reminderList.getJSONObject(offsetParam).getBoolean("is_important");
-                        if (isImportant.equals(importantParam)) {
-                            reminders.put(reminderList.getJSONObject(offsetParam));
-                            limitParam = limitParam - 1;
-                        }
-                    }
-
-                    if (limitParam <= 0)
-                        break;
+                for (; offsetParam < reminderList.length() && limitParam > 0; offsetParam++) {
+                    Boolean isCompleted = reminderList.getJSONObject(offsetParam).getBoolean("is_completed");
+                    Boolean isImportant = reminderList.getJSONObject(offsetParam).getBoolean("is_important");
+                    
+                    limitParam = utility.addRemindersAgainstParams(reminderList.getJSONObject(offsetParam), reminders,
+                            completedParam, importantParam, isCompleted, isImportant, offsetParam, limitParam);
                 }
 
-                response.setStatus(HttpServletResponse.SC_OK);
-                JSONObject responseObject = utility.responseBuilder("reminders", reminders);
-                output.println(responseObject);
+                handler.SuccessResponseHandler(reminders, HttpServletResponse.SC_OK, response, output);
             } else {
                 // GET request for 1 reminder only
                 requestId = requestId.replace("/", ""); // omit '/' from path to convert into proper <id> field
@@ -100,32 +77,17 @@ public class Servlet extends HttpServlet {
                 int getObjectIndex = utility.checkReminderIdExists(reminderList, Integer.parseInt(requestId));
                 if (getObjectIndex != -1) {
                     // data exists in JSONArray
-                    JSONObject reminder = reminderList.getJSONObject(getObjectIndex);
-
-                    response.setStatus(HttpServletResponse.SC_OK);
-                    JSONObject responseObject = utility.responseBuilder("reminders", reminder);
-                    output.println(responseObject);
+                    handler.SuccessResponseHandler(reminderList.getJSONObject(getObjectIndex),
+                            HttpServletResponse.SC_OK, response, output);
                 } else {
                     // data not found
-                    JSONObject errorObjects = new JSONObject();
                     String errorMessage = String.format("Reminder id " + "<" + requestId + ">" + " not found");
-                    errorObjects.put("status_code", HttpServletResponse.SC_NOT_FOUND);
-                    errorObjects.put("error", errorMessage);
-
-                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                    JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
-                    output.println(responseObject);
+                    handler.ErrorResponseHandler(errorMessage.toString(), UNPROCESSABLE_ENTITY, response, output);
                 }
             }
-        } catch (Exception err) {
+        } catch (Exception error) {
             // error occuring during <Integer> or <Boolean> parsing
-            JSONObject errorObjects = new JSONObject();
-            errorObjects.put("status_code", UNPROCESSABLE_ENTITY);
-            errorObjects.put("error", err.toString());
-
-            response.setStatus(UNPROCESSABLE_ENTITY);
-            JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
-            output.println(responseObject);
+            handler.ErrorResponseHandler(error.toString(), UNPROCESSABLE_ENTITY, response, output);
         }
     }
 
@@ -146,42 +108,30 @@ public class Servlet extends HttpServlet {
 
             requestId = requestId.replace("/", ""); // omit '/' from path to convert into proper <id> field
             int getObjectIndex = utility.checkReminderIdExists(reminderList, Integer.parseInt(requestId));
-
             if (getObjectIndex == -1) {
                 // data not found
-                JSONObject errorObjects = new JSONObject();
                 String errorMessage = String.format("Reminder id " + "<" + requestId + ">" + " not found");
-                errorObjects.put("status_code", HttpServletResponse.SC_NOT_FOUND);
-                errorObjects.put("error", errorMessage);
-
-                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
-                output.println(responseObject);
+                handler.ErrorResponseHandler(errorMessage, HttpServletResponse.SC_NOT_FOUND, response, output);
             } else {
                 int reminderId = reminderList.getJSONObject(getObjectIndex).getInt("id");
                 reminderList.remove(getObjectIndex);
 
-                String info = String.format("<" + reminderId + ">" + " has been deleted");
-
-                response.setStatus(HttpServletResponse.SC_OK);
+                String info = String.format("Reminder <" + reminderId + ">" + " has been deleted");
                 JSONObject reminderIdObject = new JSONObject().put("message", info);
-                JSONObject responseObject = utility.responseBuilder("reminders", reminderIdObject);
-                output.println(responseObject);
+                handler.SuccessResponseHandler(reminderIdObject, HttpServletResponse.SC_OK, response, output);
             }
         } else {
-            ArrayList<String> reminderIds = new ArrayList<>(); // get all <id>
+            ArrayList<Integer> reminderIds = new ArrayList<>(); // get all <id>
             for (int i = 0; i < reminderList.length(); i++) {
-                String reminderId = reminderList.getJSONObject(i).getString("id");
+                Integer reminderId = reminderList.getJSONObject(i).getInt("id");
                 reminderIds.add(reminderId);
             }
             reminderList = new JSONArray(); // blank JSONArray list (erase all data)
+            counter = 0; // empty count
 
-            String info = String.format("<" + reminderIds.toString() + ">" + " have been deleted");
-
-            response.setStatus(HttpServletResponse.SC_OK);
+            String info = String.format("Reminder <" + reminderIds.toString() + ">" + " have been deleted");
             JSONObject reminderIdsObject = new JSONObject().put("message", info);
-            JSONObject responseObject = utility.responseBuilder("reminders", reminderIdsObject);
-            output.println(responseObject);
+            handler.SuccessResponseHandler(reminderIdsObject, HttpServletResponse.SC_OK, response, output);
         }
     }
 
@@ -189,12 +139,12 @@ public class Servlet extends HttpServlet {
      * @method POST /reminders      add new data
      * 
      * @field name                  String  REQUIRED
-     * @field tag_color             String  REQUIRED
-     * @field is_completed          Boolean REQUIRED
-     * @field is_important          Boolean REQUIRED
+     * @field tag_color             String  OPTIONAL
+     * @field is_completed          Boolean OPTIONAL
+     * @field is_important          Boolean OPTIONAL
      * @field reminder_utc          String  REQUIRED
-     * @field frequency             String  REQUIRED
-     * @field note                  String  REQUIRED
+     * @field frequency             String  OPTIONAL
+     * @field note                  String  OPTIONAL
      */
     @Override
     public void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
@@ -206,37 +156,36 @@ public class Servlet extends HttpServlet {
         try {
             JSONObject requestJsonObject = new JSONObject(requestBody).getJSONObject("reminders");
 
-            // missing field(s) in request body
-            if (requestJsonObject.has("name") || requestJsonObject.has("tag_color")
-                    || requestJsonObject.has("is_completed") || requestJsonObject.has("is_important")
-                    || requestJsonObject.has("frequency") || requestJsonObject.has("note")) {
+            // check <name> field in request body
+            if (requestJsonObject.has("name")) {
                 String reminderName = requestJsonObject.getString("name");
-                String tagColor = requestJsonObject.getString("tag_color");
-                boolean isCompleted = requestJsonObject.getBoolean("is_completed");
-                boolean isImportant = requestJsonObject.getBoolean("is_important");
-                String reminderNote = requestJsonObject.getString("note");
+                String tagColor = requestJsonObject.has("tag_color") != false ? requestJsonObject.getString("tag_color")
+                        : "#f1f1f1";
+                Boolean isCompleted = requestJsonObject.has("is_completed") != false
+                        ? requestJsonObject.getBoolean("is_completed")
+                        : false;
+                Boolean isImportant = requestJsonObject.has("is_important") != false
+                        ? requestJsonObject.getBoolean("is_important")
+                        : false;
+                Object reminderNote = requestJsonObject.has("note") != false ? requestJsonObject.getString("note")
+                        : JSONObject.NULL;
 
                 // String to enum <Frequency>
                 try {
                     Instant reminderUtc = Instant.parse(requestJsonObject.getString("reminder_utc"));
-                    Frequency frequency = Frequency.valueOf(requestJsonObject.getString("frequency"));
+                    Frequency frequency = requestJsonObject.has("frequency") != false
+                            ? Frequency.valueOf(requestJsonObject.getString("frequency"))
+                            : Frequency.DAILY;
 
-                    int nameExists = utility.checkReminderNameExists(reminderList, reminderName);
-                    if (nameExists != -1) {
-                        reminderList.getJSONObject(nameExists).put("tag_color", tagColor);
-                        reminderList.getJSONObject(nameExists).put("is_completed", isCompleted);
-                        reminderList.getJSONObject(nameExists).put("is_important", isImportant);
-                        reminderList.getJSONObject(nameExists).put("frequency", frequency);
-                        reminderList.getJSONObject(nameExists).put("reminder_utc", reminderUtc);
-                        reminderList.getJSONObject(nameExists).put("note", reminderNote);
+                    int getIndex = utility.checkReminderNameExists(reminderList, reminderName);
+                    if (getIndex != -1) {
+                        utility.addExistingData(reminderList, getIndex, tagColor, isCompleted, isImportant, reminderUtc, frequency, reminderNote);
 
                         String info = String.format("Reminder <"
-                                + reminderList.getJSONObject(nameExists).getInt("id") + ">" + " has been added");
-
-                        response.setStatus(HttpServletResponse.SC_CREATED);
+                                + reminderList.getJSONObject(getIndex).getInt("id") + ">" + " has been added");
                         JSONObject reminderIdObject = new JSONObject().put("message", info);
-                        JSONObject responseObject = utility.responseBuilder("reminders", reminderIdObject);
-                        output.println(responseObject);
+                        handler.SuccessResponseHandler(reminderIdObject, HttpServletResponse.SC_CREATED, response,
+                                output);
                     } else {
                         // create new object <Model>
                         Model reminder = new Model(++counter, reminderName, tagColor, isCompleted,
@@ -250,42 +199,22 @@ public class Servlet extends HttpServlet {
                         // object to display for successful POST request
                         String info = String
                                 .format("Reminder <" + reminder.getUuid() + ">" + " has been added");
-
-                        response.setStatus(HttpServletResponse.SC_CREATED);
                         JSONObject reminderIdObject = new JSONObject().put("message", info);
-                        JSONObject responseObject = utility.responseBuilder("reminders", reminderIdObject);
-                        output.println(responseObject);
+                        handler.SuccessResponseHandler(reminderIdObject, HttpServletResponse.SC_CREATED, response,
+                                output);
                     }
                 } catch (Exception error) {
                     // unable to parse into <Frequency> enum
-                    JSONObject errorObjects = new JSONObject();
-                    errorObjects.put("status_code", UNPROCESSABLE_ENTITY);
-                    errorObjects.put("error", error.toString());
-
-                    response.setStatus(UNPROCESSABLE_ENTITY);
-                    JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
-                    output.println(responseObject);
+                    handler.ErrorResponseHandler(error.toString(), UNPROCESSABLE_ENTITY, response, output);
                 }
             } else {
-                // missing fields in body
-                String errorMessage = "Missing one or many fields";
-                JSONObject errorObjects = new JSONObject();
-                errorObjects.put("status_code", UNPROCESSABLE_ENTITY);
-                errorObjects.put("error", errorMessage);
-    
-                response.setStatus(UNPROCESSABLE_ENTITY);
-                JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
-                output.println(responseObject);
+                // <name> field in body
+                String errorMessage = "Missing <name> field in request body";
+                handler.ErrorResponseHandler(errorMessage, UNPROCESSABLE_ENTITY, response, output);
             }
         } catch (Exception error) {
             // Unable to parse into JSONObject
-            JSONObject errorObjects = new JSONObject();
-            errorObjects.put("status_code", HttpServletResponse.SC_BAD_REQUEST);
-            errorObjects.put("error", error.toString());
-
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
-            output.println(responseObject);
+            handler.ErrorResponseHandler(error.toString(), HttpServletResponse.SC_BAD_REQUEST, response, output);
         }
     }
 
@@ -315,13 +244,7 @@ public class Servlet extends HttpServlet {
             if (getObjectIndex == -1) {
                 // <id> not found
                 String errorMessage = String.format("Reminder id " + "<" + requestId + ">" + " not found");
-                JSONObject errorObjects = new JSONObject();
-                errorObjects.put("status_code", HttpServletResponse.SC_NOT_FOUND);
-                errorObjects.put("error", errorMessage);
-
-                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
-                output.println(responseObject);
+                handler.ErrorResponseHandler(errorMessage, HttpServletResponse.SC_NOT_FOUND, response, output);
             } else {
                 String requestBody = request.getReader().lines().collect(Collectors.joining());
                 try {
@@ -331,20 +254,13 @@ public class Servlet extends HttpServlet {
                     for (String key : requestJsonObject.keySet()) {
                         if (key.equals("name") || key.equals("id"))
                             continue;
-                        else if (key.equals("reminder_utc")) {
-                            Instant updatedReminderUtc = utility.getUtcTime(requestJsonObject.getString(key));
 
+                        if (key.equals("reminder_utc")) {
+                            Instant updatedReminderUtc = utility.getUtcTime(requestJsonObject.getString(key));
                             if (updatedReminderUtc == null) {
                                 String errorMessage = String.format("Field <reminder_utc> is not in proper form");
-                                JSONObject errorObjects = new JSONObject();
-                                errorObjects.put("status_code", UNPROCESSABLE_ENTITY);
-                                errorObjects.put("error", errorMessage);
-                
-                                response.setStatus(UNPROCESSABLE_ENTITY);
-                                JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
-                                output.println(responseObject);
+                                handler.ErrorResponseHandler(errorMessage, UNPROCESSABLE_ENTITY, response, output);
                                 return;
-
                             } else
                                 reminder.put(key, requestJsonObject.get(key));
                         } else
@@ -355,32 +271,18 @@ public class Servlet extends HttpServlet {
                     int reminderId = reminder.getInt("id"); // get <id> from JSONObject
 
                     String info = String.format("Reminder <" + reminderId + ">" + " has been updated");
-
-                    response.setStatus(HttpServletResponse.SC_OK);
                     JSONObject reminderIdObject = new JSONObject().put("message", info);
-                    JSONObject responseObject = utility.responseBuilder("reminders", reminderIdObject);
-                    output.println(responseObject);
+                    handler.SuccessResponseHandler(reminderIdObject, HttpServletResponse.SC_OK, response, output);
                 } catch (Exception error) {
                     // Unable to parse into JSONObject
-            JSONObject errorObjects = new JSONObject();
-            errorObjects.put("status_code", HttpServletResponse.SC_BAD_REQUEST);
-            errorObjects.put("error", error.toString());
-
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
-            output.println(responseObject);
+                    handler.ErrorResponseHandler(error.toString(), HttpServletResponse.SC_BAD_REQUEST, response,
+                            output);
                 }
             }
         } else {
             // error in parameter
             String errorMessage = "Reminder <id> not provided as parameter";
-            JSONObject errorObjects = new JSONObject();
-            errorObjects.put("status_code", HttpServletResponse.SC_BAD_REQUEST);
-            errorObjects.put("error", errorMessage);
-
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            JSONObject responseObject = utility.responseBuilder("reminders", errorObjects);
-            output.println(responseObject);
+            handler.ErrorResponseHandler(errorMessage, HttpServletResponse.SC_BAD_REQUEST, response, output);
         }
     }
 }

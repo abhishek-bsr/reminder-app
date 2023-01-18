@@ -1,27 +1,51 @@
 package com.reminder;
 
 import java.time.Instant;
-import java.util.UUID;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 public class Utils {
-    protected JSONObject responseBuilder(String key, Object value) {
-        JSONObject responseObject = new JSONObject();
-        responseObject.put(key, value);
+    protected int addRemindersAgainstParams(JSONObject reminderObject, JSONArray reminders, Boolean completedParam,
+            Boolean importantParam, Boolean isCompleted,
+            Boolean isImportant, int offsetParam, int limitParam) {
+        // check for <completed> param and <important> param
+        // if both are null, skip checking fields in JSONObject
+        if (completedParam != null && importantParam != null) {
+            if (completedParam == isCompleted && importantParam == isImportant) {
+                reminders.put(reminderObject);
+                return --limitParam;
+            }
+        } else if (completedParam == isCompleted) {
+            reminders.put(reminderObject);
+            return --limitParam;
+        } else if (importantParam == isImportant) {
+            reminders.put(reminderObject);
+            return --limitParam;
+        } else if (completedParam == null && importantParam == null) {
+            reminders.put(reminderObject);
+            return --limitParam;
+        }
 
-        return responseObject;
+        return limitParam;
     }
 
-    protected UUID generateUUID() {
-        return UUID.randomUUID();
+    protected void addExistingData(JSONArray reminderList, int getIndex, String tagColor, Boolean isCompleted,
+            Boolean isImportant, Instant reminderUtc, Frequency frequency, Object reminderNote) {
+        reminderList.getJSONObject(getIndex).put("tag_color", tagColor);
+        reminderList.getJSONObject(getIndex).put("is_completed", isCompleted);
+        reminderList.getJSONObject(getIndex).put("is_important", isImportant);
+        reminderList.getJSONObject(getIndex).put("reminder_utc", reminderUtc);
+        reminderList.getJSONObject(getIndex).put("frequency", frequency);
+        reminderList.getJSONObject(getIndex).put("note", reminderNote);
     }
 
     protected int adjustParamlengthIfRequired(int listSize, int paramValue) {
-        if (paramValue > listSize) return listSize;
-        else if (paramValue < 0) return 0;
-        
+        if (paramValue > listSize)
+            return listSize;
+        else if (paramValue < 0)
+            return 0;
+
         return paramValue;
     }
 
@@ -55,7 +79,7 @@ public class Utils {
     }
 
     protected void storeDataInList(JSONArray reminderList, int reminderId, String reminderName, String tagColor,
-            boolean isCompleted, boolean isImportant, String reminderUtc, Frequency frequency, String reminderNote) {
+            boolean isCompleted, boolean isImportant, String reminderUtc, Frequency frequency, Object reminderNote) {
         JSONObject reminder = new JSONObject();
         reminder.put("id", reminderId);
         reminder.put("name", reminderName);
