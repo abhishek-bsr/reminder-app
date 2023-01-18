@@ -59,7 +59,7 @@ public class Utils {
         return -1;
     }
 
-    protected int checkReminderIdExists(JSONArray reminderList, int reminderId) {
+    protected int getIndexFromList(JSONArray reminderList, int reminderId) {
         for (int i = 0; i < reminderList.length(); i++) {
             JSONObject reminder = reminderList.getJSONObject(i);
             if (reminder.getInt("id") == reminderId)
@@ -67,6 +67,16 @@ public class Utils {
         }
 
         return -1;
+    }
+
+    protected JSONObject checkReminderIdExists(JSONArray reminderList, int reminderId) {
+        for (int i = 0; i < reminderList.length(); i++) {
+            JSONObject reminder = reminderList.getJSONObject(i);
+            if (reminder.getInt("id") == reminderId)
+                return reminder;
+        }
+
+        return null;
     }
 
     protected Instant getUtcTime(String reminderUtcInString) {

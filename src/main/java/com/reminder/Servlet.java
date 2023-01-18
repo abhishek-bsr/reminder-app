@@ -74,11 +74,10 @@ public class Servlet extends HttpServlet {
                 // GET request for 1 reminder only
                 requestId = requestId.replace("/", ""); // omit '/' from path to convert into proper <id> field
 
-                int getObjectIndex = utility.checkReminderIdExists(reminderList, Integer.parseInt(requestId));
-                if (getObjectIndex != -1) {
+                JSONObject reminder = utility.checkReminderIdExists(reminderList, Integer.parseInt(requestId));
+                if (reminder != null) {
                     // data exists in JSONArray
-                    handler.SuccessResponseHandler(reminderList.getJSONObject(getObjectIndex),
-                            HttpServletResponse.SC_OK, response, output);
+                    handler.SuccessResponseHandler(reminder, HttpServletResponse.SC_OK, response, output);
                 } else {
                     // data not found
                     String errorMessage = String.format("Reminder id " + "<" + requestId + ">" + " not found");
@@ -107,14 +106,14 @@ public class Servlet extends HttpServlet {
         if (requestId != null && requestId.length() != 1) {
 
             requestId = requestId.replace("/", ""); // omit '/' from path to convert into proper <id> field
-            int getObjectIndex = utility.checkReminderIdExists(reminderList, Integer.parseInt(requestId));
-            if (getObjectIndex == -1) {
+            int arrayIndex = utility.getIndexFromList(reminderList, Integer.parseInt(requestId));
+            if (arrayIndex == -1) {
                 // data not found
                 String errorMessage = String.format("Reminder id " + "<" + requestId + ">" + " not found");
                 handler.ErrorResponseHandler(errorMessage, HttpServletResponse.SC_NOT_FOUND, response, output);
             } else {
-                int reminderId = reminderList.getJSONObject(getObjectIndex).getInt("id");
-                reminderList.remove(getObjectIndex);
+                int reminderId = reminderList.getJSONObject(arrayIndex).getInt("id");
+                reminderList.remove(arrayIndex);
 
                 String info = String.format("Reminder <" + reminderId + ">" + " has been deleted");
                 JSONObject reminderIdObject = new JSONObject().put("message", info);
@@ -239,7 +238,7 @@ public class Servlet extends HttpServlet {
         if (requestId != null && requestId.length() != 1) {
 
             requestId = requestId.replace("/", ""); // omit '/' from path to convert into proper <id> field
-            int getObjectIndex = utility.checkReminderIdExists(reminderList, Integer.parseInt(requestId));
+            int getObjectIndex = utility.getIndexFromList(reminderList, Integer.parseInt(requestId));
 
             if (getObjectIndex == -1) {
                 // <id> not found
